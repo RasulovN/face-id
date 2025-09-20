@@ -30,7 +30,6 @@
     "bytes": "^3.1.2",
     "call-bind-apply-helpers": "^1.0.1",
     "call-bound": "^1.0.3",
-    "canvas": "^3.0.1",
     "chokidar": "^3.6.0",
     "chownr": "^1.1.4",
     "color-support": "^1.1.3",
