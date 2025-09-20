@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Verification</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background-color: #f0f0f0;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    video, canvas {
+      position: absolute;
+      width: 640px;
+      height: 480px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    #result {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 20px;
+      color: #333;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <h1>Face Verification</h1>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+  <div id="result"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.0.0/dist/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script>
+    const socket = io();
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let verifiedNames = []; // Array to hold the names for each face
+    let facesVerified = []; // Array to track if a face is already verified
+    let lastLandmarks = []; // To track last face landmarks
+  
+    // Setup FaceMesh
+    const faceMesh = new FaceMesh({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 5,  // Support up to 5 faces in the frame
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    faceMesh.onResults(onFaceResults);
+  
+    // Camera setup
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await faceMesh.send({ image: video });
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start();
+  
+    async function onFaceResults(results) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+      if (results.multiFaceLandmarks) {
+        results.multiFaceLandmarks.forEach((landmarks, index) => {
+          let top = canvas.height, bottom = 0, left = canvas.width, right = 0;
+  
+          landmarks.forEach((point) => {
+            const x = point.x * canvas.width;
+            const y = point.y * canvas.height;
+  
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
+          });
+  
+          const width = right - left;
+          const height = bottom - top;
+          ctx.strokeStyle = 'blue';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(left, top, width, height); // Draw bounding box
+  
+          // Check if there is any movement in the face landmarks
+          const currentLandmarks = landmarks.map(point => ({ x: point.x, y: point.y }));
+          let isFaceMoving = false;
+  
+          if (lastLandmarks[index]) {
+            // If the previous landmarks exist, compare them to detect movement
+            const movementThreshold = 0.03; // Set a threshold for landmark movement detection
+  
+            // Compare each landmark's position
+            isFaceMoving = currentLandmarks.some((landmark, i) => {
+              const prevLandmark = lastLandmarks[index][i];
+              const dx = Math.abs(landmark.x - prevLandmark.x);
+              const dy = Math.abs(landmark.y - prevLandmark.y);
+              return dx > movementThreshold || dy > movementThreshold;
+            });
+          }
+  
+          // Store the current landmarks for the next frame
+          lastLandmarks[index] = currentLandmarks;
+  
+          // Send the face image for verification only if there is movement
+          if (isFaceMoving) {
+            const imageData = canvas.toDataURL('image/png');
+            socket.emit('check', imageData);
+          }
+  
+          // If face is already verified, keep the name unchanged
+          let name = facesVerified[index] ? verifiedNames[index] : '';
+  
+          // Draw the name only once the face is verified
+          if (name) {
+            ctx.fillStyle = 'blue';
+            ctx.font = '16px Arial';
+            console.log(name);
+            
+            ctx.fillText(name, left, bottom + 20); // Show name at the bottom of the box
+          }
+        });
+      }
+    }
+  
+    socket.on('verification_result', (results) => {
+      // Display verification results for each detected face
+      results.forEach((result, index) => {
+        if (result.verified) {
+          // Once a face is verified, store the name and mark it as verified
+          if (!facesVerified[index]) {
+            verifiedNames[index] = result.name; // Store the name of the verified face
+            facesVerified[index] = true; // Mark the face as verified
+          }
+        } else {
+          // If the face is not verified, mark it as "Nomalum shaxs"
+          verifiedNames[index] = 'Nomalum shaxs';
+          facesVerified[index] = false;
+        }
+  
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = ''; // Clear previous results
+  
+        results.forEach((result, index) => {
+          const p = document.createElement('p');
+          p.textContent = `Person ${index + 1}: ${verifiedNames[index]}`;
+          resultDiv.appendChild(p);
+        });
+      });
+    });
+  </script>
+  
+  
+  
+  
+</body>
+</html>

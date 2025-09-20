@@ -1,0 +1,206 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config';
+
+const Dashboard = () => {
+  const [groups, setGroups] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [attendances, setAttendances] = useState([]);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState('');
+  const [employeeName, setEmployeeName] = useState('');
+  const [employeeSurname, setEmployeeSurname] = useState('');
+  const [employeeImage, setEmployeeImage] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/');
+      return;
+    }
+    fetchGroups();
+    fetchEmployees();
+    fetchAttendances();
+  }, []);
+
+  const fetchGroups = async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/groups`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    setGroups(data);
+  };
+
+  const fetchEmployees = async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/employees`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    setEmployees(data);
+  };
+
+  const fetchAttendances = async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/attendance`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    setAttendances(data);
+  };
+
+  const createGroup = async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/groups`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ name: newGroupName })
+    });
+    if (response.ok) {
+      setNewGroupName('');
+      fetchGroups();
+    }
+  };
+
+  const addEmployee = async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/employees/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: employeeName,
+        surname: employeeSurname,
+        groupId: selectedGroup,
+        image: employeeImage
+      })
+    });
+    if (response.ok) {
+      setEmployeeName('');
+      setEmployeeSurname('');
+      setEmployeeImage('');
+      fetchEmployees();
+    }
+  };
+
+  const captureImage = () => {
+    const canvas = document.createElement('canvas');
+    const video = document.createElement('video');
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      video.srcObject = stream;
+      video.play();
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const imageData = canvas.toDataURL('image/jpeg');
+        setEmployeeImage(imageData);
+        stream.getTracks().forEach(track => track.stop());
+      };
+    });
+  };
+
+  const exportToExcel = async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/attendance/export`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'attendance.csv';
+    a.click();
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-8">
+      <h1 className="text-3xl font-bold mb-8">Company Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Groups */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-bold mb-4">Groups</h2>
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="New group name"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded"
+            />
+            <button onClick={createGroup} className="w-full mt-2 bg-blue-500 text-white p-2 rounded">
+              Create Group
+            </button>
+          </div>
+          <ul>
+            {groups.map(group => (
+              <li key={group._id} className="mb-2 p-2 bg-gray-50 rounded">
+                {group.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Employees */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-bold mb-4">Add Employee</h2>
+          <select
+            value={selectedGroup}
+            onChange={(e) => setSelectedGroup(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded mb-2"
+          >
+            <option value="">Select Group</option>
+            {groups.map(group => (
+              <option key={group._id} value={group._id}>{group.name}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            placeholder="Name"
+            value={employeeName}
+            onChange={(e) => setEmployeeName(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded mb-2"
+          />
+          <input
+            type="text"
+            placeholder="Surname"
+            value={employeeSurname}
+            onChange={(e) => setEmployeeSurname(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded mb-2"
+          />
+          <button onClick={captureImage} className="w-full mb-2 bg-green-500 text-white p-2 rounded">
+            Capture Face
+          </button>
+          <button onClick={addEmployee} className="w-full bg-blue-500 text-white p-2 rounded">
+            Add Employee
+          </button>
+        </div>
+
+        {/* Attendance */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-bold mb-4">Attendance</h2>
+          <button onClick={exportToExcel} className="mb-4 bg-green-500 text-white p-2 rounded">
+            Export to CSV
+          </button>
+          <ul>
+            {attendances.slice(0, 10).map(att => (
+              <li key={att._id} className="mb-2 p-2 bg-gray-50 rounded">
+                {att.employeeId.name} {att.employeeId.surname} - {att.entryTime} {att.exitTime && `- ${att.exitTime}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

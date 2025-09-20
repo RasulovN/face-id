@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Detection and Save</title>
+  <style>
+    body {
+     display: flex;
+     flex-direction: column;
+     justify-content: center;
+     align-items: center;
+    }
+    .textapp {
+      margin: 0;
+      padding: 0;
+    }
+    video, canvas {
+        position: absolute;
+      width: 640px;
+      height: 480px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    #result {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 10px;
+      color: #333;
+    }
+    #nameInput {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    #saveButton {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #saveButton:hover {
+      background-color: #45a049;
+    }
+    #dcontainer {
+      width: 640px;
+      height: 480px;
+      position: relative;
+      border: 1px solid #000;
+      z-index: 2;
+    }
+    main {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Face Detection</h1>
+  <main>
+    <div class="textapp">
+      <input type="text" id="nameInput" placeholder="Enter name" />
+      <button id="saveButton">Save Face Data</button>
+    </div>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+  <div id="result"></div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.0.0/dist/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+ 
+ 
+  <script>
+    const socket = io();
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const nameInput = document.getElementById('nameInput');
+    const saveButton = document.getElementById('saveButton');
+    const resultDiv = document.getElementById('result');
+  
+    const faceMesh = new FaceMesh({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    faceMesh.onResults(onFaceResults);
+  
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await faceMesh.send({ image: video });
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start();
+  
+    function onFaceResults(results) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+      if (results.multiFaceLandmarks) {
+        results.multiFaceLandmarks.forEach((landmarks) => {
+          landmarks.forEach((point) => {
+            ctx.beginPath();
+            ctx.arc(point.x * canvas.width, point.y * canvas.height, 2, 0, 2 * Math.PI);
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+          });
+        });
+  
+        const imageData = canvas.toDataURL('image/png');
+        socket.emit('stream', imageData);
+      }
+    }
+  
+    saveButton.addEventListener('click', () => {
+      const name = nameInput.value;
+      if (!name) {
+        alert('Please enter a name');
+        return;
+      }
+  
+      const imageData = canvas.toDataURL('image/png');
+      fetch('/detection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, image: imageData }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.message) {
+            resultDiv.textContent = data.message; // Displaying the response message
+            resultDiv.style.color = data.message.includes('Error') ? 'red' : 'green';
+          }
+        })
+        .catch((err) => {
+          resultDiv.textContent = 'Error saving face data: ' + err;
+          resultDiv.style.color = 'red';
+        });
+    });
+  </script>
+  
+</body>
+</html>
