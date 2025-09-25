@@ -1,4 +1,3 @@
-const { createCanvas, loadImage } = require('canvas');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -7,15 +6,17 @@ const path = require('path');
 const faceapi = require('face-api.js');
 const cors = require('cors');
 // Try to load canvas, but handle gracefully if not available
-let Canvas, loadImage;
+let Canvas, loadImage, createCanvas;
 try {
   const canvas = require('canvas');
   Canvas = canvas.Canvas;
   loadImage = canvas.loadImage;
+  createCanvas = canvas.createCanvas;
 } catch (err) {
   console.warn('Canvas module not available, using mock implementation');
   Canvas = null;
   loadImage = null;
+  createCanvas = null;
 }
 
 
