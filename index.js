@@ -155,7 +155,7 @@ async function extractFaceFeatures(imageData) {
 }
 
 // Connect to MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/face_detection', { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect('mongodb+srv://rasulov:rasulov@cluster0.5zt4b.mongodb.net/lcservice?retryWrites=true&w=majority&appName=Cluster0', { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.log('Error connecting to MongoDB:', err));
 
