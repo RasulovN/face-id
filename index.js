@@ -6,6 +6,18 @@ const mongoose = require('mongoose');
 const path = require('path');
 const faceapi = require('face-api.js');
 const cors = require('cors');
+// Try to load canvas, but handle gracefully if not available
+let Canvas, loadImage;
+try {
+  const canvas = require('canvas');
+  Canvas = canvas.Canvas;
+  loadImage = canvas.loadImage;
+} catch (err) {
+  console.warn('Canvas module not available, using mock implementation');
+  Canvas = null;
+  loadImage = null;
+}
+
 
 const authRoute = require('./routes/auth.route');
 const groupRoute = require('./routes/group.route');

@@ -1,6 +1,15 @@
 const faceapi = require('face-api.js');
-const { loadImage } = require('canvas');
 const Employee = require('../models/employee');
+
+// Try to load canvas, but handle gracefully if not available
+let loadImage;
+try {
+  const canvas = require('canvas');
+  loadImage = canvas.loadImage;
+} catch (err) {
+  console.warn('Canvas module not available in faceController');
+  loadImage = null;
+}
 
 async function verifyFace(imageData, socket) {
   try {

@@ -1,9 +1,20 @@
 const express = require('express');
 const Face = require('../models/face');
 const Employee = require('../models/employee');
-const { createCanvas, loadImage } = require('canvas');
 const faceapi = require('face-api.js');
 const { authMiddleware } = require('../middleware/auth');
+
+// Try to load canvas, but handle gracefully if not available
+let createCanvas, loadImage;
+try {
+  const canvas = require('canvas');
+  createCanvas = canvas.createCanvas;
+  loadImage = canvas.loadImage;
+} catch (err) {
+  console.warn('Canvas module not available in face route');
+  createCanvas = null;
+  loadImage = null;
+}
 
 const router = express.Router();
 
