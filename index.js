@@ -155,9 +155,17 @@ async function extractFaceFeatures(imageData) {
 }
 
 // Connect to MongoDB
-mongoose.connect('mongodb+srv://rasulov:rasulov@cluster0.5zt4b.mongodb.net/lcservice?retryWrites=true&w=majority&appName=Cluster0', { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect('mongodb+srv://rasulov:rasulov@cluster0.5zt4b.mongodb.net/lcservice?retryWrites=true&w=majority&appName=Cluster0', { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
   .then(() => console.log('MongoDB connected'))
-  .catch((err) => console.log('Error connecting to MongoDB:', err));
+  .catch((err) => {
+    console.log('Error connecting to MongoDB:', err);
+    console.log('Please check your internet connection and MongoDB Atlas configuration');
+  });
 
 // Start the server
 const PORT = 3000;

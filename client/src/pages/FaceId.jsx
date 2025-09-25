@@ -10,16 +10,27 @@ const FaceId = () => {
   const canvasRef = useRef(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
+  const [error, setError] = useState(null);
   const socketRef = useRef(null);
 
   // Kamerani ishga tushirish
   const startVideo = () => {
+    setError(null);
     navigator.mediaDevices
       .getUserMedia({ video: true })
       .then((stream) => {
         videoRef.current.srcObject = stream;
       })
-      .catch((err) => console.error("Kamera xatosi: ", err));
+      .catch((err) => {
+        console.error("Kamera xatosi: ", err);
+        if (err.name === 'NotAllowedError') {
+          setError('Camera access denied. Please grant camera permissions and refresh the page.');
+        } else if (err.name === 'NotFoundError') {
+          setError('No camera found. Please connect a camera and try again.');
+        } else {
+          setError('Failed to access camera. Please check your camera settings.');
+        }
+      });
   };
 
   // Modellarni yuklash
@@ -96,6 +107,18 @@ const FaceId = () => {
       <h1 className="text-2xl font-bold mb-4">
         Face Verification for {companyName} - {groupName}
       </h1>
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          <p className="font-semibold">Error:</p>
+          <p>{error}</p>
+          <button 
+            onClick={startVideo}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry Camera Access
+          </button>
+        </div>
+      )}
       <div className="relative">
         <video
           ref={videoRef}
